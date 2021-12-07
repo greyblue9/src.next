@@ -1,5 +1,5 @@
 # Set the default behavior, in case people don't have core.autocrlf set.
-* text=auto eol=lf fileMode=true
+* text=auto eol=lf
 
 # Declare files that will always have CRLF line endings on checkout.
 *.cmd text eol=crlf
@@ -10,3 +10,5 @@
 *.dex binary
 *.jar binary
 *.png binary
+[core]
+fileMode = true

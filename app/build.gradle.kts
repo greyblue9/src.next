@@ -16,188 +16,39 @@
  *
  * Copyright (C) 2021 LSPosed Contributors
  */
+import org.eclipse.jgit.api.Git
+import org.eclipse.jgit.internal.storage.file.FileRepository
 
-import com.android.build.api.component.analytics.AnalyticsEnabledApplicationVariant
-import com.android.build.api.variant.impl.ApplicationVariantImpl
-import com.android.build.gradle.internal.dsl.BuildType
-import java.nio.file.Paths
-import java.time.Instant
-
-plugins {
-    id("com.android.application")
-    id("androidx.navigation.safeargs")
-}
-
-val androidTargetSdkVersion: Int by rootProject.extra
-val androidMinSdkVersion: Int by rootProject.extra
-val androidBuildToolsVersion: String by rootProject.extra
-val androidCompileSdkVersion: Int by rootProject.extra
-val androidCompileNdkVersion: String by rootProject.extra
-val androidSourceCompatibility: JavaVersion by rootProject.extra
-val androidTargetCompatibility: JavaVersion by rootProject.extra
-val defaultManagerPackageName: String by rootProject.extra
-val verCode: Int by rootProject.extra
-val verName: String by rootProject.extra
-
-val androidStoreFile: String? by rootProject
-val androidStorePassword: String? by rootProject
-val androidKeyAlias: String? by rootProject
-val androidKeyPassword: String? by rootProject
-
-android {
-    compileSdk = androidCompileSdkVersion
-    ndkVersion = androidCompileNdkVersion
-    buildToolsVersion = androidBuildToolsVersion
-
-    buildFeatures {
-        viewBinding = true
-        buildConfig = true
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
     }
-
-    defaultConfig {
-        applicationId = defaultManagerPackageName
-        minSdk = androidMinSdkVersion
-        targetSdk = androidTargetSdkVersion
-        versionCode = verCode
-        versionName = verName
-        buildConfigField("long", "BUILD_TIME", Instant.now().epochSecond.toString())
-    }
-
-    compileOptions {
-        targetCompatibility(androidTargetCompatibility)
-        sourceCompatibility(androidSourceCompatibility)
-    }
-
-    lint {
-        disable += "MissingTranslation"
-        isAbortOnError = true
-        isCheckReleaseBuilds = false
-    }
-
-    packagingOptions {
-        resources {
-            excludes += "META-INF/**"
-            excludes += "okhttp3/**"
-            excludes += "kotlin/**"
-            excludes += "org/**"
-            excludes += "**.properties"
-            excludes += "**.bin"
-        }
-    }
-
-    dependenciesInfo.includeInApk = false
-
-    signingConfigs {
-        create("config") {
-            androidStoreFile?.also {
-                storeFile = rootProject.file(it)
-                storePassword = androidStorePassword
-                keyAlias = androidKeyAlias
-                keyPassword = androidKeyPassword
-            }
-        }
-    }
-
-    buildTypes {
-        signingConfigs.named("config").get().also {
-            debug {
-                if (it.storeFile?.exists() == true) signingConfig = it
-            }
-            release {
-                signingConfig = if (it.storeFile?.exists() == true) it
-                else signingConfigs.named("debug").get()
-                isMinifyEnabled = true
-                (this as BuildType).isShrinkResources = true
-                proguardFiles("proguard-rules.pro")
-            }
-        }
+    val navVersion by extra("2.4.0-beta02")
+    val agpVersion by extra("7.0.3")
+    dependencies {
+        classpath("com.android.tools.build:gradle:$agpVersion")
+        classpath("org.eclipse.jgit:org.eclipse.jgit:5.12.0.202106070339-r")
+        classpath("androidx.navigation:navigation-safe-args-gradle-plugin:$navVersion")
     }
 }
 
-androidComponents.onVariants { v ->
-    val variant: ApplicationVariantImpl =
-        if (v is ApplicationVariantImpl) v
-        else (v as AnalyticsEnabledApplicationVariant).delegate as ApplicationVariantImpl
-    variant.outputs.forEach {
-        it.outputFileName.set("LSPosedManager-v${verName}-${verCode}-${variant.name}.apk")
-    }
-}
+val repo = FileRepository(rootProject.file(".git"))
+val refId = repo.refDatabase.exactRef("refs/remotes/origin/master").objectId!!
+val commitCount = Git(repo).log().add(refId).call().count()
 
+val defaultManagerPackageName by extra("org.lsposed.manager")
+val apiCode by extra(93)
+val verCode by extra(commitCount + 4200)
+val verName by extra("1.6.3")
+val androidTargetSdkVersion by extra(31)
+val androidMinSdkVersion by extra(27)
+val androidBuildToolsVersion by extra("31.0.0")
+val androidCompileSdkVersion by extra(31)
+val androidCompileNdkVersion by extra("23.1.7779620")
+val androidSourceCompatibility by extra(JavaVersion.VERSION_11)
+val androidTargetCompatibility by extra(JavaVersion.VERSION_11)
 
-val optimizeReleaseRes = task("optimizeReleaseRes").doLast {
-    val aapt2 = File(
-        androidComponents.sdkComponents.sdkDirectory.get().asFile,
-        "build-tools/${androidBuildToolsVersion}/aapt2"
-    )
-    val zip = Paths.get(
-        project.buildDir.path,
-        "intermediates",
-        "optimized_processed_res",
-        "release",
-        "resources-release-optimize.ap_"
-    )
-    val optimized = File("${zip}.opt")
-    val cmd = exec {
-        commandLine(
-            aapt2, "optimize",
-            "--collapse-resource-names",
-            "--enable-sparse-encoding",
-            "-o", optimized,
-            zip
-        )
-        isIgnoreExitValue = false
-    }
-    if (cmd.exitValue == 0) {
-        delete(zip)
-        optimized.renameTo(zip.toFile())
-    }
-}
-
-tasks.whenTaskAdded {
-    if (name == "optimizeReleaseResources") {
-        finalizedBy(optimizeReleaseRes)
-    }
-}
-
-dependencies {
-    val glideVersion = "4.12.0"
-    val navVersion: String by rootProject.extra
-    annotationProcessor("com.github.bumptech.glide:compiler:$glideVersion")
-    implementation("androidx.activity:activity:1.4.0")
-    implementation("androidx.browser:browser:1.4.0")
-    implementation("androidx.constraintlayout:constraintlayout:2.1.1")
-    implementation("androidx.core:core:1.7.0")
-    implementation("androidx.fragment:fragment:1.3.6")
-    implementation("androidx.navigation:navigation-fragment:$navVersion")
-    implementation("androidx.navigation:navigation-ui:$navVersion")
-    implementation("androidx.preference:preference:1.1.1")
-    implementation("androidx.recyclerview:recyclerview:1.2.1")
-    implementation("androidx.slidingpanelayout:slidingpanelayout:1.2.0-beta01")
-    implementation("androidx.swiperefreshlayout:swiperefreshlayout:1.1.0")
-    implementation("com.github.bumptech.glide:glide:$glideVersion")
-    implementation("com.google.android.material:material:1.5.0-alpha05")
-    implementation("com.google.code.gson:gson:2.8.9")
-    implementation(platform("com.squareup.okhttp3:okhttp-bom:4.9.2"))
-    implementation("com.squareup.okhttp3:okhttp")
-    implementation("com.squareup.okhttp3:okhttp-dnsoverhttps")
-    implementation("com.squareup.okhttp3:logging-interceptor")
-    implementation("dev.rikka.rikkax.appcompat:appcompat:1.2.0-rc01")
-    implementation("dev.rikka.rikkax.core:core:1.3.3")
-    implementation("dev.rikka.rikkax.insets:insets:1.1.0")
-    implementation("dev.rikka.rikkax.material:material:1.6.6")
-    implementation("dev.rikka.rikkax.preference:simplemenu-preference:1.0.3")
-    implementation("dev.rikka.rikkax.recyclerview:recyclerview-ktx:1.2.2")
-    implementation("dev.rikka.rikkax.widget:borderview:1.1.0")
-    implementation("dev.rikka.rikkax.widget:switchbar:1.0.2")
-    implementation("dev.rikka.rikkax.layoutinflater:layoutinflater:1.1.0")
-    implementation("me.zhanghai.android.appiconloader:appiconloader:1.3.1")
-    implementation("org.lsposed.hiddenapibypass:hiddenapibypass:2.0")
-    implementation(project(":manager-service"))
-}
-
-configurations.all {
-    exclude("org.jetbrains", "annotations")
-    exclude("androidx.appcompat", "appcompat")
-    exclude("org.jetbrains.kotlin", "kotlin-stdlib-jdk7")
-    exclude("org.jetbrains.kotlin", "kotlin-stdlib-jdk8")
+tasks.register("Delete", Delete::class) {
+    delete(rootProject.buildDir)
 }

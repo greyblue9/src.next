@@ -1,108 +1,54 @@
-plugins {
-    id("com.android.application")
-    id("hideapi-redefine")
-    id("riru")
-}
+/*
+ * This file is part of LSPosed.
+ *
+ * LSPosed is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * LSPosed is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with LSPosed.  If not, see <https://www.gnu.org/licenses/>.
+ *
+ * Copyright (C) 2021 LSPosed Contributors
+ */
+import org.eclipse.jgit.api.Git
+import org.eclipse.jgit.internal.storage.file.FileRepository
 
-val buildMinVersion: Int by extra
-val buildTargetVersion: Int by extra
-
-val buildVersionCode: Int by extra
-val buildVersionName: String by extra
-
-val buildNdkVersion: String by extra
-
-riru {
-    id = "riru_clipboard_whitelist"
-    name = "Riru - Clipboard Whitelist"
-    minApi = 28
-    minApiName = "25.0.0"
-    description = "A module of Riru. Add clipboard whitelist to Android 10."
-    author = "Kr328"
-}
-
-android {
-    compileSdkVersion(buildTargetVersion)
-
-    ndkVersion = buildNdkVersion
-
-    defaultConfig {
-        applicationId = "com.github.kr328.clipboard.module"
-
-        minSdk = buildMinVersion
-        targetSdk = buildTargetVersion
-
-        versionCode = buildVersionCode
-        versionName = buildVersionName
-
-        multiDexEnabled = false
-
-        externalNativeBuild {
-            cmake {
-                arguments(
-                        "-DRIRU_API:INTEGER=${riru.minApi}",
-                        "-DRIRU_NAME:STRING=${riru.name}",
-                        "-DRIRU_MODULE_ID:STRING=${riru.riruId}",
-                        "-DRIRU_MODULE_VERSION_CODE:INTEGER=$versionCode",
-                        "-DRIRU_MODULE_VERSION_NAME:STRING=$versionName"
-                )
-            }
-        }
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
     }
-
-    buildFeatures {
-        buildConfig = false
-        prefab = true
-    }
-
-    buildTypes {
-        named("release") {
-            isMinifyEnabled = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-        }
-    }
-
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
-    }
-
-    externalNativeBuild {
-        cmake {
-            path = file("src/main/cpp/CMakeLists.txt")
-        }
-    }
-
-    applicationVariants.all {
-
+    val navVersion by extra("2.4.0-beta02")
+    val agpVersion by extra("7.0.3")
+    dependencies {
+        classpath("com.android.tools.build:gradle:$agpVersion")
+        classpath("org.eclipse.jgit:org.eclipse.jgit:5.12.0.202106070339-r")
+        classpath("androidx.navigation:navigation-safe-args-gradle-plugin:$navVersion")
     }
 }
 
-dependencies {
-    compileOnly(project(":hideapi"))
+val repo = FileRepository(rootProject.file(".git"))
+val refId = repo.refDatabase.exactRef("refs/remotes/origin/master").objectId!!
+val commitCount = Git(repo).log().add(refId).call().count()
 
-    implementation(project(":shared"))
+val defaultManagerPackageName by extra("org.lsposed.manager")
+val apiCode by extra(93)
+val verCode by extra(commitCount + 4200)
+val verName by extra("1.6.3")
+val androidTargetSdkVersion by extra(31)
+val androidMinSdkVersion by extra(27)
+val androidBuildToolsVersion by extra("31.0.0")
+val androidCompileSdkVersion by extra(31)
+val androidCompileNdkVersion by extra("23.1.7779620")
+val androidSourceCompatibility by extra(JavaVersion.VERSION_11)
+val androidTargetCompatibility by extra(JavaVersion.VERSION_11)
 
-    implementation("dev.rikka.ndk:riru:25.0.1")
-}
-
-afterEvaluate {
-    android.applicationVariants.forEach {
-        val cName = it.name.capitalize()
-
-        val cp = tasks.register("copyModuleApk$cName", Copy::class.java) {
-            from(project(":app").buildDir
-                .resolve("outputs/apk/${it.name}/app-${it.name}.apk"))
-
-            into(generatedMagiskDir(it)
-                .resolve("system/priv-app/ClipboardWhitelist"))
-
-            rename {
-                "ClipboardWhitelist.apk"
-            }
-        }
-
-        tasks["mergeMagisk$cName"].dependsOn(cp)
-        cp.get().dependsOn(project(":app").tasks["assemble$cName"])
-    }
+tasks.register("Delete", Delete::class) {
+    delete(rootProject.buildDir)
 }
