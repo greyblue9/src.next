@@ -27,6 +27,7 @@ jobs:
       # Checkout the code base #
       ##########################
       - name: Checking-out code
+        continue-on-error: true
         uses: actions/checkout@v2
         with:
           # Full git history is needed to get a proper list of changed files within `super-linter`
@@ -36,6 +37,7 @@ jobs:
       # Run Linter against code base #
       ################################
       - name: Running Super-Linter
+        continue-on-error: true
         uses: docker://ghcr.io/github/super-linter:slim-v4
         env:
           VALIDATE_ALL_CODEBASE: false

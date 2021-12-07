@@ -25,18 +25,6 @@ jobs:
       max-parallel: 4
       matrix:
         platform: [arm, arm64, x86, x64]
-
-    # The GitHub Actions machines have a "slow disk", and a SSD "fast" disk.
-    # However, there is not enough space to do all the processing on the SSD.
-    
-    # We refer to the disks based on their name in /dev/disk
-    # /dev/disk/azure/root-part1 is / ("slow disk")
-    # /dev/disk/azure/resource-part1 is a 14 GB ephemeral SSD disk mounted in /mnt
-
-    # We store the source-code repository (kiwibrowser/src) on /dev/disk/azure/root-part1
-    # We store cache, dependencies and output on /dev/disk/azure/resource-part1 (SSD)
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
       - name: Initializing build
         run: echo Initializing build for platform ${{ matrix.platform }}
@@ -46,49 +34,48 @@ jobs:
 
       - name: Installing rclone
         run: curl https://rclone.org/install.sh | sudo bash
+  
+      - name: set up dirs
+        continue-on-error: true
+        run: mkdir -p ~/.config/rclone/; echo $'[cache]\ntype = cache\nupstreams = /tmp/.cache\n' | tee ~/.config/rclone/rclone.conf; mkdir -p /tmp/.cache; mkdir -p secondary_disk/out; rm -rf secondary_disk/out/*; ln -sf ../../.build/production_build_reference secondary_disk/out/android_arm64;
 
       - name: Installing Python and OpenJDK
+        continue-on-error: true
         run: sudo apt-get install -y python openjdk-8-jdk-headless libncurses5 ccache
 
       - name: Reclaiming disk space on / by disabling swap partition
+        continue-on-error: true
         run: |
           sudo swapoff -av
           sudo rm -f /swapfile
 
       - name: Reclaiming disk space on / by removing .NET framework
+        continue-on-error: true
         run: sudo rm -rf /usr/share/dotnet
 
-      - name: Checking-out source-code in $GITHUB_WORKSPACE
-        uses: actions/checkout@v2
-
-      - name: Creating secondary disk folder on /dev/disk/azure/resource-part1 (SSD)
-        run: |
-          sudo mkdir -p /extended_data
-          sudo chown -R runner:docker /extended_data
-      
-      # If you want to use only the SSD, you can use:
-      - name: On SSD - Creating symlink on /dev/disk/azure/root-part1 pointing to /dev/disk/azure/resource-part1
-        run: |
-          sudo ln -s /extended_data /mnt/secondary_disk
-          sudo ln -s /mnt/secondary_disk $GITHUB_WORKSPACE/
       # or alternatively, to work on the main partition
-      # - name: On HDD - Creating symlink on /dev/disk/azure/root-part1 pointing to /dev/disk/azure/resource-part1
-      #  run: |
-      #    sudo ln -s /extended_data /mnt/secondary_disk
-      #    sudo ln -s /mnt/secondary_disk $GITHUB_WORKSPACE/
+      - name: On HDD - Creating symlink on /dev/disk/azure/root-part1 pointing to /dev/disk/azure/resource-part1
+        continue-on-error: true
+       run: |
+         sudo ln -s /extended_data /mnt/secondary_disk
+         sudo ln -s /mnt/secondary_disk $GITHUB_WORKSPACE/
 
       # We cannot checkout outside of $GITHUB_WORKSPACE, but we want to checkout to the SSD
 
       - name: Creating output folder
+        continue-on-error: true
         run: mkdir -p secondary_disk/out/android_${{ matrix.platform }}
 
       - name: Generating one-time APK signature key
+        continue-on-error: true
         run: keytool -genkey -v -keystore keystore.jks -alias dev -keyalg RSA -keysize 2048 -validity 10000 -storepass public_password -keypass public_password -dname "cn=Kiwi Browser (unverified), ou=Actions, o=Kiwi Browser, c=GitHub"
 
       - name: Copying args.gn to target folder
+        continue-on-error: true
         run: cat .build/android_arm/args.gn | sed "s#target_cpu = \"arm\"#target_cpu = \"${{ matrix.platform }}\"#" | sed "s#android_default_version_name = \"Git\"#android_default_version_name = \"Git$(date '+%y%m%d')Gen${{ github.run_id }}\"#" > secondary_disk/out/android_${{ matrix.platform }}/args.gn
 
       - name: Creating rclone config
+        continue-on-error: true
         run: |
           mkdir -p $HOME/.config/rclone/
           echo '[cache]' > $HOME/.config/rclone/rclone.conf
@@ -98,46 +85,58 @@ jobs:
           echo 'key_pem = ${{ secrets.STORAGE_KEY }}' >> $HOME/.config/rclone/rclone.conf
 
       - name: Modifying args.gn (arm)
+        continue-on-error: true
         if: matrix.platform == 'arm'
         run: sed -i "s#android_default_version_code = \"1\"#android_default_version_code = \"$(date '+%y%m%d')1\"#" secondary_disk/out/android_${{ matrix.platform }}/args.gn
 
       - name: Modifying args.gn (arm64)
+        continue-on-error: true
         if: matrix.platform == 'arm64'
         run: sed -i "s#android_default_version_code = \"1\"#android_default_version_code = \"$(date '+%y%m%d')2\"#" secondary_disk/out/android_${{ matrix.platform }}/args.gn
 
       - name: Modifying args.gn (x86)
+        continue-on-error: true
         if: matrix.platform == 'x86'
         run: sed -i "s#android_default_version_code = \"1\"#android_default_version_code = \"$(date '+%y%m%d')3\"#" secondary_disk/out/android_${{ matrix.platform }}/args.gn
 
       - name: Modifying args.gn (x64)
+        continue-on-error: true
         if: matrix.platform == 'x64'
         run: sed -i "s#android_default_version_code = \"1\"#android_default_version_code = \"$(date '+%y%m%d')4\"#" secondary_disk/out/android_${{ matrix.platform }}/args.gn
 
       - name: Displaying args.gn
+        continue-on-error: true
         run: cat secondary_disk/out/android_${{ matrix.platform }}/args.gn
 
       - name: Checking available disk-space
+        continue-on-error: true
         run: df -h
 
       - name: Uploading args.gn
+        continue-on-error: true
         run: rclone copy --fast-list --transfers=128 --retries=10 secondary_disk/out/android_${{ matrix.platform }}/args.gn cache:kiwibrowser-next-builds-${{ matrix.platform }}/
 
       - name: Calling buildbot
+        continue-on-error: true
         if: false
         run: curl ipinfo.io
 
       - name: Downloading binary objects cache to $HOME/cache
+        continue-on-error: true
         run: rclone copy --fast-list --transfers=128 --retries=10 cache:kiwibrowser-next-builds-${{ matrix.platform }}/ $HOME/kiwibrowser-next-builds-${{ matrix.platform }}
 
       - name: Transferring build to the standard Kiwi Browser run ID
+        continue-on-error: true
         run: rclone copy --fast-list --transfers=128 --retries=10 cache:kiwibrowser-next-builds-${{ matrix.platform }}/ cache:kiwibrowser-builds/${{ github.run_id }}/${{ matrix.platform }}
 
       - name: Listing files
+        continue-on-error: true
         run: |
           echo $HOME
           ls -la $HOME/kiwibrowser-next-builds-${{ matrix.platform }}
 
       - name: Uploading APK
+        continue-on-error: true
         uses: actions/upload-artifact@v1
         with:
           name: apk-${{ matrix.platform }}
@@ -149,9 +148,11 @@ jobs:
 
     steps:
       - name: Installing rclone
+        continue-on-error: true
         run: curl https://rclone.org/install.sh | sudo bash
     
       - name: Creating rclone config
+        continue-on-error: true
         run: |
           mkdir -p $HOME/.config/rclone/
           echo '[cache]' > $HOME/.config/rclone/rclone.conf
@@ -161,6 +162,7 @@ jobs:
           echo 'key_pem = ${{ secrets.STORAGE_KEY }}' >> $HOME/.config/rclone/rclone.conf
 
       - name: Creating release
+        continue-on-error: true
         id: create_release
         uses: actions/create-release@v1.1.4
         env:
@@ -220,31 +222,37 @@ jobs:
             Essentially, if you downloaded Kiwi from an app store, you need to use the "-playstore.apk" files or uninstall the version of Kiwi you have and start using the "-github.apk" version.
 
       - name: Downloading artifact (arm)
+        continue-on-error: true
         uses: actions/download-artifact@v1
         with:
           name: apk-arm
 
       - name: Downloading artifact (arm64)
+        continue-on-error: true
         uses: actions/download-artifact@v1
         with:
           name: apk-arm64
 
       - name: Downloading artifact (x86)
+        continue-on-error: true
         uses: actions/download-artifact@v1
         with:
           name: apk-x86
 
       - name: Downloading artifact (x64)
+        continue-on-error: true
         uses: actions/download-artifact@v1
         with:
           name: apk-x64
 
       - name: Signing and uploading release to GitHub and send to the Play Store
+        continue-on-error: true
         if: ${{ github.repository_owner == 'kiwibrowser' && contains(github.event.inputs.prepareRelease, 'yes') }}
         run: |
           curl 'https://${{ secrets.RELEASE_HOST }}/?run_id=${{ github.run_id }}&dk=${{ secrets.DEPLOY_KEY }}&publish=1&target=aab'
 
       - name: Downloading artifacts from storage
+        continue-on-error: true
         if: ${{ github.repository_owner == 'kiwibrowser' }}
         run: |
           rclone copy --fast-list --transfers=128 --retries=100 cache:kiwibrowser-builds/${{ github.run_id }}/arm/ ./apk-arm 
@@ -253,6 +261,7 @@ jobs:
           rclone copy --fast-list --transfers=128 --retries=100 cache:kiwibrowser-builds/${{ github.run_id }}/x64/ ./apk-x64
 
       - name: Uploading release asset (arm-signed)
+        continue-on-error: true
         if: ${{ github.repository_owner == 'kiwibrowser' }}
         uses: actions/upload-release-asset@v1
         env:
@@ -264,6 +273,7 @@ jobs:
           asset_content_type: application/vnd.android.package-archive
 
       - name: Uploading release asset (arm64-signed)
+        continue-on-error: true
         if: ${{ github.repository_owner == 'kiwibrowser' }}
         uses: actions/upload-release-asset@v1
         env:
@@ -275,6 +285,7 @@ jobs:
           asset_content_type: application/vnd.android.package-archive
 
       - name: Uploading release asset (x86-signed)
+        continue-on-error: true
         if: ${{ github.repository_owner == 'kiwibrowser' }}
         uses: actions/upload-release-asset@v1
         env:
@@ -286,6 +297,7 @@ jobs:
           asset_content_type: application/vnd.android.package-archive
 
       - name: Uploading release asset (x64-signed)
+        continue-on-error: true
         if: ${{ github.repository_owner == 'kiwibrowser' }}
         uses: actions/upload-release-asset@v1
         env:
@@ -297,6 +309,7 @@ jobs:
           asset_content_type: application/vnd.android.package-archive
 
       - name: Uploading dev asset (arm-signed)
+        continue-on-error: true
         if: ${{ github.repository_owner == 'kiwibrowser' }}
         uses: actions/upload-release-asset@v1
         env:
@@ -308,6 +321,7 @@ jobs:
           asset_content_type: application/vnd.android.package-archive
 
       - name: Uploading dev asset (arm64-signed)
+        continue-on-error: true
         if: ${{ github.repository_owner == 'kiwibrowser' }}
         uses: actions/upload-release-asset@v1
         env:
@@ -319,6 +333,7 @@ jobs:
           asset_content_type: application/vnd.android.package-archive
 
       - name: Uploading dev asset (x86-signed)
+        continue-on-error: true
         if: ${{ github.repository_owner == 'kiwibrowser' }}
         uses: actions/upload-release-asset@v1
         env:
@@ -330,6 +345,7 @@ jobs:
           asset_content_type: application/vnd.android.package-archive
 
       - name: Uploading dev asset (x64-signed)
+        continue-on-error: true
         if: ${{ github.repository_owner == 'kiwibrowser' }}
         uses: actions/upload-release-asset@v1
         env:

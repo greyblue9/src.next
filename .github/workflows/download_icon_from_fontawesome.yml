@@ -21,32 +21,40 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Repo
+        continue-on-error: true
         uses: actions/checkout@v2.3.4
           
       - name: Setup Node
+        continue-on-error: true
         uses: actions/setup-node@v1
         with:
           node-version: '10.x'
 
       - name: npm config registry
+        continue-on-error: true
         env:
           FONTAWESOME_NPM_AUTH_TOKEN: ${{ secrets.FONTAWESOME_NPM_AUTH_TOKEN }}
         run: |
           npm config set "@fortawesome:registry" https://npm.fontawesome.com/
           npm config set "//npm.fontawesome.com/:_authToken" "$FONTAWESOME_NPM_AUTH_TOKEN"
       - name: npm install FA package
+        continue-on-error: true
         run: npm install --save @fortawesome/fontawesome-pro@next
         
       - name: Install librsvg2
+        continue-on-error: true
         run: sudo apt install librsvg2-bin
       
       - name: Install ImageMagick
+        continue-on-error: true
         run: sudo apt-get install imagemagick
         
       - name: Execute Script - Replace icons with new FA ones
+        continue-on-error: true
         run: bash ./toolbox/icon_update_script.sh "./node_modules/@fortawesome/fontawesome-pro/svgs/${{ github.event.inputs.iconTypeFA }}/${{ github.event.inputs.iconNameFA }}.svg" "${{ github.event.inputs.fileNameInChromium }}" "${{ github.event.inputs.fillColor }}"
       
       - name: Git Auto Commit
+        continue-on-error: true
         uses: stefanzweifel/git-auto-commit-action@v4.11.0
         with:
           # Commit message
