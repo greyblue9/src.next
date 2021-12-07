@@ -1,32 +1,30 @@
-### Node ###
-# Logs
-logs
-*.log
-npm-debug.log*
+.gradle
+.cxx
+build/
 
-# node-waf configuration
-.lock-wscript
+# Ignore Gradle GUI config
+gradle-app.setting
 
-# Compiled binary addons (https://nodejs.org/api/addons.html)
-build/Release
+# Avoid ignoring Gradle wrapper jar targetFile (.jar files are usually ignored)
+!gradle-wrapper.jar
 
-# Dependency directories
-node_modules/
-jspm_packages/
+# Cache of project
+.gradletasknamecache
 
-# Optional npm cache directory
-.npm
+# # Work around https://youtrack.jetbrains.com/issue/IDEA-116898
+# gradle/wrapper/gradle-wrapper.properties
 
-# Optional REPL history
-.node_repl_history
+# Ignore IDEA config
+.idea
+*.iml
 
-# Output of 'npm pack'
-*.tgz
+# KeyStore
+*.keystore
+*.jks
 
-# environment variables file
-.env
-.env.test
-.env.production
+# clion cmake build
+cmake-build-*
 
-# Stores VSCode versions used for testing VSCode extensions
-.vscode-test
+# local.properties
+local.properties
+keystore.properties

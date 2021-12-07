@@ -1,0 +1,27 @@
+name: 'Any branch: Delete a committed file'
+
+on:
+  workflow_dispatch:
+    inputs:
+      filename:
+        description: 'The filename to delete (all history will be deleted for this file)'     
+        required: true
+
+jobs:
+  delete:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+        
+      - name: Setting-up GitHub username
+        run: |
+          git config --global user.email "github@actions"
+          git config --global user.name "Repository manager"
+
+      - name: Deleting file from history
+        run: |
+          git filter-branch --force --index-filter "git rm --cached --ignore-unmatch ${{ github.event.inputs.filename }}" --prune-empty --tag-name-filter cat -- --all
+      
+      - run: git push --force --all
