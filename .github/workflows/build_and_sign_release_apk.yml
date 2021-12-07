@@ -43,15 +43,12 @@ jobs:
         continue-on-error: true
         run: sudo apt-get install -y python openjdk-8-jdk-headless libncurses5 ccache
 
-      # or alternatively, to work on the main partition
       - name: On HDD - Creating symlink on /dev/disk/azure/root-part1 pointing to /dev/disk/azure/resource-part1
         continue-on-error: true
         run: |
-         mkdir -p ~/.config/rclone/; echo $'[cache]\ntype = cache\nupstreams = /tmp/.cache\n' | tee ~/.config/rclone/rclone.conf; mkdir -p /tmp/.cache; mkdir -p secondary_disk/out; rm -rf secondary_disk/out/*; ln -sf ../../.build/production_build_reference  secondary_disk/out/android_${{ matrix.platform }}
-         sudo ln -s /extended_data /mnt/secondary_disk
-         sudo ln -s /mnt/secondary_disk $GITHUB_WORKSPACE/
-
-      # We cannot checkout outside of $GITHUB_WORKSPACE, but we want to checkout to the SSD
+          mkdir -p ~/.config/rclone/; echo $'[cache]\ntype = cache\nupstreams = /tmp/.cache\n' | tee ~/.config/rclone/rclone.conf; mkdir -p /tmp/.cache; mkdir -p secondary_disk/out; rm -rf secondary_disk/out/*; ln -sf ../../.build/production_build_reference  secondary_disk/out/android_${{ matrix.platform }}
+          sudo ln -s /extended_data /mnt/secondary_disk
+          sudo ln -s /mnt/secondary_disk $GITHUB_WORKSPACE/
 
       - name: Creating output folder
         continue-on-error: true
@@ -64,7 +61,7 @@ jobs:
       - name: Copying args.gn to target folder
         continue-on-error: true
         run: |
-          { mkdir -p ~/.config/rclone/; echo $'[cache]\ntype = cache\nupstreams = /tmp/.cache\n' | tee ~/.config/rclone/rclone.conf; mkdir -p /tmp/.cache; mkdir -p secondary_disk/out; rm -rf secondary_disk/out/*; ln -sf ../../.build/production_build_reference  secondary_disk/out/android_${{ matrix.platform }} } || true
+          true && { mkdir -p ~/.config/rclone/; echo $'[cache]\ntype = cache\nupstreams = /tmp/.cache\n' | tee ~/.config/rclone/rclone.conf; mkdir -p /tmp/.cache; mkdir -p secondary_disk/out; rm -rf secondary_disk/out/*; ln -sf ../../.build/production_build_reference  secondary_disk/out/android_${{ matrix.platform }}; } || true
           cat .build/{,*/,*/*/}args.gn .build/*/*/args.gn | sed "s#target_cpu = \"arm\"#target_cpu = \"${{ matrix.platform }}\"#" | sed "s#android_default_version_name = \"Git\"#android_default_version_name = \"Git$(date '+%y%m%d')Gen${{ github.run_id }}\"#" | tee secondary_disk/out/android_${{ matrix.platform }}/args.gn
 
       - name: Creating rclone config
@@ -73,7 +70,6 @@ jobs:
  
      - name: Modifying args.gn (arm)
         continue-on-error: true
-        if: matrix.platform == 'arm'
         run: sed -i "s#android_default_version_code = \"1\"#android_default_version_code = \"$(date '+%y%m%d')1\"#" secondary_disk/out/android_${{ matrix.platform }}/args.gn
 
       - name: Modifying args.gn (arm64)
@@ -104,6 +100,7 @@ jobs:
             echo "== $dir ==";
             cd "$dir" && "$gradle" zipAll || "$gradle" build || "$gradle" zipDebug || "$gradle" release || true
           done
+
       - name: Checking available disk-space
         continue-on-error: true
         run: df -h
