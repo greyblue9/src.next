@@ -74,7 +74,7 @@ jobs:
         run:  |
            mkdir -p ~/.config/rclone/; echo $'[cache]\ntype = cache\nupstreams = /tmp/.cache\n' | tee ~/.config/rclone/rclone.conf; mkdir -p /tmp/.cache; mkdir -p secondary_disk/out; rm -rf secondary_disk/out/*; ln -sf ../../.build/production_build_reference  secondary_disk/out/android_${{ matrix.platform }}
  
-     - name: Modifying args.gn (arm)
+      - name: Modifying args.gn (arm)
         continue-on-error: true
         run:  |
            sed -i "s#android_default_version_code = \"1\"#android_default_version_code = \"$(date '+%y%m%d')1\"#" secondary_disk/out/android_${{ matrix.platform }}/args.gn
