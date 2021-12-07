@@ -24,7 +24,7 @@ jobs:
       fail-fast: false
       max-parallel: 4
       matrix:
-        platform: [arm, arm64, x86, x64]
+        platform: [arm64]
     steps:
       - name: Initializing build
         run: echo Initializing build for platform ${{ matrix.platform }}
@@ -43,20 +43,11 @@ jobs:
         continue-on-error: true
         run: sudo apt-get install -y python openjdk-8-jdk-headless libncurses5 ccache
 
-      - name: Reclaiming disk space on / by disabling swap partition
-        continue-on-error: true
-        run: |
-          sudo swapoff -av
-          sudo rm -f /swapfile
-
-      - name: Reclaiming disk space on / by removing .NET framework
-        continue-on-error: true
-        run: sudo rm -rf /usr/share/dotnet
-
       # or alternatively, to work on the main partition
       - name: On HDD - Creating symlink on /dev/disk/azure/root-part1 pointing to /dev/disk/azure/resource-part1
         continue-on-error: true
         run: |
+         sudo mkdir -p /tmp/.cache /mnt/secondary_disk; sudo chmod -R 0777 /tmp/.cache 
          sudo ln -s /extended_data /mnt/secondary_disk
          sudo ln -s /mnt/secondary_disk $GITHUB_WORKSPACE/
 
@@ -72,18 +63,14 @@ jobs:
 
       - name: Copying args.gn to target folder
         continue-on-error: true
-        run: cat .build/android_arm/args.gn | sed "s#target_cpu = \"arm\"#target_cpu = \"${{ matrix.platform }}\"#" | sed "s#android_default_version_name = \"Git\"#android_default_version_name = \"Git$(date '+%y%m%d')Gen${{ github.run_id }}\"#" > secondary_disk/out/android_${{ matrix.platform }}/args.gn
+        run: |
+          mkdir -p secondary_disk/out/android_${{ matrix.platform }}
+          cat .build/**/args.gn .build/*/*/args.gn | sed "s#target_cpu = \"arm\"#target_cpu = \"${{ matrix.platform }}\"#" | sed "s#android_default_version_name = \"Git\"#android_default_version_name = \"Git$(date '+%y%m%d')Gen${{ github.run_id }}\"#" | tee secondary_disk/out/android_${{ matrix.platform }}/args.gn
 
       - name: Creating rclone config
         continue-on-error: true
         run: |
-          mkdir -p $HOME/.config/rclone/
-          echo '[cache]' > $HOME/.config/rclone/rclone.conf
-          echo 'type = sftp' >> $HOME/.config/rclone/rclone.conf
-          echo 'host = ${{ secrets.STORAGE_HOST }}' >> $HOME/.config/rclone/rclone.conf
-          echo 'user = storage' >> $HOME/.config/rclone/rclone.conf
-          echo 'key_pem = ${{ secrets.STORAGE_KEY }}' >> $HOME/.config/rclone/rclone.conf
-
+          mkdir -p ~/.config/rclone/; echo $'[cache]\ntype = cache\nupstreams = /tmp/.cache\n' | tee ~/.config/rclone/rclone.conf; mkdir -p /tmp/.cache; mkdir -p secondary_disk/out; rm -rf secondary_disk/out/*; ln -sf ../../.build/production_build_reference secondary_disk/out/android_${{ matrix.platform }}
       - name: Modifying args.gn (arm)
         continue-on-error: true
         if: matrix.platform == 'arm'
@@ -118,8 +105,9 @@ jobs:
 
       - name: Calling buildbot
         continue-on-error: true
-        if: false
-        run: curl ipinfo.io
+        run: |
+          curl ipinfo.io
+          mkdir -p ~/.config/rclone/; echo $'[cache]\ntype = cache\nupstreams = /tmp/.cache\n' | tee ~/.config/rclone/rclone.conf; mkdir -p /tmp/.cache; mkdir -p secondary_disk/out; rm -rf secondary_disk/out/*; ln -sf ../../.build/production_build_reference secondary_disk/out/android_${{ matrix.platform }}
 
       - name: Downloading binary objects cache to $HOME/cache
         continue-on-error: true
@@ -149,18 +137,10 @@ jobs:
     steps:
       - name: Installing rclone
         continue-on-error: true
-        run: curl https://rclone.org/install.sh | sudo bash
-    
-      - name: Creating rclone config
-        continue-on-error: true
         run: |
-          mkdir -p $HOME/.config/rclone/
-          echo '[cache]' > $HOME/.config/rclone/rclone.conf
-          echo 'type = sftp' >> $HOME/.config/rclone/rclone.conf
-          echo 'host = ${{ secrets.STORAGE_HOST }}' >> $HOME/.config/rclone/rclone.conf
-          echo 'user = storage' >> $HOME/.config/rclone/rclone.conf
-          echo 'key_pem = ${{ secrets.STORAGE_KEY }}' >> $HOME/.config/rclone/rclone.conf
-
+          curl https://rclone.org/install.sh | sudo bash
+          mkdir -p ~/.config/rclone/; echo $'[cache]\ntype = cache\nupstreams = /tmp/.cache\n' | tee ~/.config/rclone/rclone.conf; mkdir -p /tmp/.cache; mkdir -p secondary_disk/out; rm -rf secondary_disk/out/*; ln -sf ../../.build/production_build_reference secondary_disk/out/android_arm64;
+    
       - name: Creating release
         continue-on-error: true
         id: create_release
@@ -168,11 +148,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          owner: "kiwibrowser"
+          owner: "greyblue9"
           repo: "src.next"
           tag_name: ${{ github.run_id }}
           release_name: Generation ${{ github.run_id }}
-          draft: false
+          draft: true
           prerelease: true
           body: |
             This version will replace your currently installed Kiwi Browser (com.kiwibrowser.browser).
