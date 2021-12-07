@@ -28,6 +28,7 @@ jobs:
       - name: Setting-up GitHub username
         continue-on-error: true
         run: |
+          sudo chmod -R a+x .
           git config --global user.email "github@actions"
           git config --global user.name "Repository manager"
 
@@ -38,6 +39,7 @@ jobs:
       - name: Loading settings from CHROMIUM_VERSION
         continue-on-error: true
         run: |
+          sudo chmod -R a+x .
           source CHROMIUM_VERSION; export $(cut -d= -f1 CHROMIUM_VERSION | grep -vF '#')
           env | grep -F CHROMIUM_ >> $GITHUB_ENV
 
@@ -62,6 +64,7 @@ jobs:
         if: contains(github.event.inputs.path, 'drawable-') || contains(github.event.inputs.path, 'mipmap-')
         continue-on-error: true
         run: |
+          sudo chmod -R a+x .
           for image_folder in drawable mipmap
           do
             for resolution_folder in mdpi hdpi xhdpi xxhdpi xxxhdpi
