@@ -1,31 +1,57 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:tools="http://schemas.android.com/tools"
-    package="com.github.kr328.clipboard"
-    xmlns:android="http://schemas.android.com/apk/res/android">
+  <!--
+  ~ This file is part of LSPosed.
+  ~
+  ~ LSPosed is free software: you can redistribute it and/or modify
+  ~ it under the terms of the GNU General Public License as published by
+  ~ the Free Software Foundation, either version 3 of the License, or
+  ~ (at your option) any later version.
+  ~
+  ~ LSPosed is distributed in the hope that it will be useful,
+  ~ but WITHOUT ANY WARRANTY; without even the implied warranty of
+  ~ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  ~ GNU General Public License for more details.
+  ~
+  ~ You should have received a copy of the GNU General Public License
+  ~ along with LSPosed.  If not, see <https://www.gnu.org/licenses/>.
+  ~
+  ~ Copyright (C) 2020 EdXposed Contributors
+  ~ Copyright (C) 2021 LSPosed Contributors
+  -->
 
-    <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES"
-        tools:ignore="QueryAllPackagesPermission" />
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    package="org.lsposed.manager">
+
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
-        android:label="@string/app_name"
+        android:name=".App"
+        android:allowBackup="true"
+        android:hasFragileUserData="true"
         android:icon="@mipmap/ic_launcher"
-        android:roundIcon="@mipmap/ic_launcher_round"
-        android:allowBackup="false"
-        android:theme="@style/AppTheme">
-
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:theme="@style/AppTheme"
+        tools:ignore="AllowBackup,GoogleAppIndexingWarning"
+        tools:targetApi="q">
         <activity
-            android:name=".MainActivity"
-            android:label="@string/launch_name">
+            android:name=".ui.activity.MainActivity"
+            android:exported="true"
+            android:launchMode="singleTop">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+                <action android:name="android.intent.action.APPLICATION_PREFERENCES" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+            <meta-data
+                android:name="android.app.shortcuts"
+                android:resource="@xml/shortcuts" />
         </activity>
-
         <activity
-            android:name=".InstalledActivity"
-            android:label="@string/app_name"
-            android:excludeFromRecents="true"
-            android:theme="@android:style/Theme.NoDisplay"/>
+            android:name=".ui.activity.CrashReportActivity"
+            android:process=":error" />
     </application>
+
 </manifest>

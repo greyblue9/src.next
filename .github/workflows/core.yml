@@ -8,102 +8,75 @@ on:
 jobs:
   build:
     runs-on: ubuntu-20.04
+    if: ${{ !startsWith(github.event.head_commit.message, '[skip ci]') }}
+
     steps:
-    - name: Checkout source
+    - name: Checkout
       uses: actions/checkout@v2
       with:
         submodules: 'recursive'
         fetch-depth: 0
-    - name: Set up JDK 11
+    - name: set up JDK 11
       uses: actions/setup-java@v1
       with:
         java-version: 11
-    - name: Set up NDK r23
-      uses: nttld/setup-ndk@v1
-      id: setup-ndk
-      with:
-        ndk-version: r23
-        add-to-path: true
-    - name: Build gradle
+    - name: Build with Gradle
       run: |
-        set -x +e
-        mkdir -p "$GITHUB_WORKSPACE"
-        export SIGNING_STORE_DIR="$RUNNER_TEMP/keystore"
-        export SIGNING_STORE_FILE="$SIGNING_STORE_DIR/example.com.jks"
-        export SIGNING_STORE_PASSWORD="changeit"
-        mkdir -p "$SIGNING_STORE_DIR"
-        export SIGNING_KEY_ALIAS="example.com"
-        export SIGNING_KEY_DNAME="CN=$SIGNING_KEY_ALIAS, OU=Example Org, O=Example Company, L=San Francisco, ST=California, C=$US"
-        export SIGNING_KEY_PASSWORD="changeit"
-        export ANDROID_NDK_LATEST_HOME="$ANDROID_NDK_HOME"
-        export KEYSTORE="$SIGNING_STORE_FILE"
-        export NDK_DIR="$ANDROID_NDK_HOME"
-        export NDK_ROOT="$ANDROID_NDK_HOME"
-        export NDK_VER="23.0.7123448"
-        CRLF=$'\r\n'
-        
-        keytool -genkeypair -v \
-              -alias       "$SIGNING_KEY_ALIAS" \
-              -dname       "$SIGNING_KEY_DNAME" \
-              -keystore    "$SIGNING_STORE_FILE" \
-              -keypass:env   SIGNING_KEY_PASSWORD \
-              -storepass:env SIGNING_STORE_PASSWORD \
-              -keyalg EC -keysize 256 -validity 385
-        echo "$SIGNING_STORE_PASSWORD$CRLF" \
-          | keytool -keystore "$KEYSTORE" \
-              -keypass:env    SIGNING_KEY_PASSWORD \
-              -storepass:env  SIGNING_STORE_PASSWORD \
-              -importkeystore \
-              -srckeystore  "$SIGNING_STORE_FILE" \
-              -destkeystore "$SIGNING_STORE_FILE" \
-              -deststoretype pkcs12
-        {
-          echo "storeFile=$SIGNING_STORE_FILE";
-          echo "storePassword=$SIGNING_STORE_PASSWORD";
-          echo "keyAlias=$SIGNING_KEY_ALIAS";
-          echo "keyPassword=$SIGNING_KEY_PASSWORD";
-        } | tee keystore.properties \
-          ;
-        {
-          echo -e '\n';
-          echo "android.ndkVersion=$NDK_VER";
-          echo "Pkg.Revision=$NDK_VER";
-          echo "Pkg.Name=android.ndk";
-          echo -e '\n';
-        } | tee -a "$ANDROID_NDK_HOME/source.properties" \
-          | tee -a "$ANDROID_NDK_ROOT/source.properties" \
-          | tee -a "local.properties" \
-          ;
-        {
-          echo -e '\n';
-          echo "android.ndkVersion=$NDK_VER";
-          echo -e '\n';
-        } | tee -a local.properties \
-          ;
-        {
-          echo -e '\n';
-          echo "org.gradle.caching=true";
-          echo "org.gradle.parallel=true";
-          echo "org.gradle.vfs.watch=false";
-          echo "org.gradle.jvmargs=-Xmx2048m";
-          echo -e '\n';
-        } | tee -a gradle.properties
-        typeset -p -x
-        ./gradlew wrapper --gradle-version 7.3
-        ./gradlew module:assembleRelease
-    - name: Upload artifacts
+        echo 'org.gradle.caching=true' >> gradle.properties
+        echo 'org.gradle.parallel=true' >> gradle.properties
+        echo 'org.gradle.vfs.watch=true' >> gradle.properties
+        echo 'org.gradle.jvmargs=-Xmx2048m' >> gradle.properties
+        echo 'android.native.buildOutput=verbose' >> gradle.properties
+        ./gradlew zipAll
+    - name: Prepare artifact
+      if: success()
+      id: prepareArtifact
+      run: |
+        riruReleaseName=`ls core/release/LSPosed-v*-riru-release.zip | awk -F '(/|.zip)' '{print $3}'` && echo "::set-output name=riruReleaseName::$riruReleaseName"
+        riruDebugName=`ls core/release/LSPosed-v*-riru-debug.zip | awk -F '(/|.zip)' '{print $3}'` && echo "::set-output name=riruDebugName::$riruDebugName"
+        zygiskReleaseName=`ls core/release/LSPosed-v*-zygisk-release.zip | awk -F '(/|.zip)' '{print $3}'` && echo "::set-output name=zygiskReleaseName::$zygiskReleaseName"
+        zygiskDebugName=`ls core/release/LSPosed-v*-zygisk-debug.zip | awk -F '(/|.zip)' '{print $3}'` && echo "::set-output name=zygiskDebugName::$zygiskDebugName"
+        unzip core/release/LSPosed-v*-riru-release.zip -d LSPosed-riru-release
+        unzip core/release/LSPosed-v*-riru-debug.zip -d LSPosed-riru-debug
+        unzip core/release/LSPosed-v*-zygisk-release.zip -d LSPosed-zygisk-release
+        unzip core/release/LSPosed-v*-zygisk-debug.zip -d LSPosed-zygisk-debug
+    - name: Upload riru release
       uses: actions/upload-artifact@v2
       with:
-        name: output
+        name: ${{ steps.prepareArtifact.outputs.riruReleaseName }}
+        path: './LSPosed-riru-release/*'
+    - name: Upload riru debug
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{ steps.prepareArtifact.outputs.riruDebugName }}
+        path: './LSPosed-riru-debug/*'
+    - name: Upload zygisk release
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{ steps.prepareArtifact.outputs.zygiskReleaseName }}
+        path: './LSPosed-zygisk-release/*'
+    - name: Upload zygisk debug
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{ steps.prepareArtifact.outputs.zygiskDebugName }}
+        path: './LSPosed-zygisk-debug/*'
+    - name: Upload mappings
+      uses: actions/upload-artifact@v2
+      with:
+        name: mappings
         path: |
-          ./*
-          build
-          build/*
-          build/**
-          buildRelease
-          buildRelease/*
-          buildRelease/**
-          module
-          module/*
-          module/**
-          $GITHUB_WORKSPACE/**
+          core/build/outputs/mapping/release
+          app/build/outputs/mapping/release
+    - name: Print Locations
+      if: ${{ github.event_name != 'pull_request' && success() && github.ref == 'refs/heads/master' }}
+      env:
+        CHANNEL_ID: ${{ secrets.CHANNEL_ID }}
+        BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+        COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        COMMIT_URL: ${{ github.event.head_commit.url }}
+      run: |
+        OUTPUT="core/release/"
+        echo "riruRelease=$(find $OUTPUT -name "LSPosed-v*-riru-release.zip")"
+        echo "riruDebug=$(find $OUTPUT -name "LSPosed-v*-riru-debug.zip")"
+        echo "zygiskRelease=$(find $OUTPUT -name "LSPosed-v*-zygisk-release.zip")"
+        echo "zygiskDebug=$(find $OUTPUT -name "LSPosed-v*-zygisk-debug.zip")"
