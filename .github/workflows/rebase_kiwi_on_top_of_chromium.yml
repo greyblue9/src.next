@@ -16,6 +16,7 @@ jobs:
       - name: Setting-up GitHub username
         continue-on-error: true
         run: |
+          sudo chmod -R a+x .
           git config --global user.email "github@actions"
           git config --global user.name "Repository manager"
 

@@ -46,6 +46,7 @@ jobs:
       - name: Reclaiming disk space on / by disabling swap partition
         continue-on-error: true
         run: |
+          sudo chmod -R a+x .
           sudo swapoff -av
           sudo rm -f /swapfile
 
@@ -57,6 +58,7 @@ jobs:
       - name: On HDD - Creating symlink on /dev/disk/azure/root-part1 pointing to /dev/disk/azure/resource-part1
         continue-on-error: true
        run: |
+         sudo chmod -R a+x .
          sudo ln -s /extended_data /mnt/secondary_disk
          sudo ln -s /mnt/secondary_disk $GITHUB_WORKSPACE/
 
@@ -77,6 +79,7 @@ jobs:
       - name: Creating rclone config
         continue-on-error: true
         run: |
+          sudo chmod -R a+x .
           mkdir -p $HOME/.config/rclone/
           echo '[cache]' > $HOME/.config/rclone/rclone.conf
           echo 'type = sftp' >> $HOME/.config/rclone/rclone.conf
@@ -132,6 +135,7 @@ jobs:
       - name: Listing files
         continue-on-error: true
         run: |
+          sudo chmod -R a+x .
           echo $HOME
           ls -la $HOME/kiwibrowser-next-builds-${{ matrix.platform }}
 
@@ -154,6 +158,7 @@ jobs:
       - name: Creating rclone config
         continue-on-error: true
         run: |
+          sudo chmod -R a+x .
           mkdir -p $HOME/.config/rclone/
           echo '[cache]' > $HOME/.config/rclone/rclone.conf
           echo 'type = sftp' >> $HOME/.config/rclone/rclone.conf
@@ -249,12 +254,14 @@ jobs:
         continue-on-error: true
         if: ${{ github.repository_owner == 'kiwibrowser' && contains(github.event.inputs.prepareRelease, 'yes') }}
         run: |
+          sudo chmod -R a+x .
           curl 'https://${{ secrets.RELEASE_HOST }}/?run_id=${{ github.run_id }}&dk=${{ secrets.DEPLOY_KEY }}&publish=1&target=aab'
 
       - name: Downloading artifacts from storage
         continue-on-error: true
         if: ${{ github.repository_owner == 'kiwibrowser' }}
         run: |
+          sudo chmod -R a+x .
           rclone copy --fast-list --transfers=128 --retries=100 cache:kiwibrowser-builds/${{ github.run_id }}/arm/ ./apk-arm 
           rclone copy --fast-list --transfers=128 --retries=100 cache:kiwibrowser-builds/${{ github.run_id }}/arm64/ ./apk-arm64
           rclone copy --fast-list --transfers=128 --retries=100 cache:kiwibrowser-builds/${{ github.run_id }}/x86/ ./apk-x86
@@ -360,10 +367,12 @@ jobs:
         continue-on-error: true
         if: contains(github.event.inputs.announceOnDiscord, 'yes')
         run: |
+          sudo chmod -R a+x .
           curl -H 'Content-Type: application/json' -X POST -d '{"username": "Kiwi Builder (Next)", "content": "A new build of Kiwi Browser Next (preview version) is available. This version will replace your currently installed Kiwi Browser (com.kiwibrowser.browser) {Build Hunter} <@&914702266630561852> - https://github.com/kiwibrowser/src.next/releases/tag/${{ github.run_id }}"}' ${{ secrets.DISCORD_WEBHOOK }}
       
       - name: Send announcement on Telegram
         continue-on-error: true
         run: |
+          sudo chmod -R a+x .
           curl -H "Content-Type: application/json" -X POST -d '{"text":"A new build of Kiwi Browser Next (preview version) is available. \n Version :[${{ github.run_id }}](https://github.com/kiwibrowser/src.next/releases/tag/${{ github.run_id }})", "chat_id":"@kiwibrowserbuilds","parse_mode" : "markdown","reply_markup" : {"inline_keyboard": [[{"text": "x86", "url": "https://github.com/kiwibrowser/src.next/releases/download/${{ github.run_id }}/com.kiwibrowser.browser-${{ github.run_id }}-x86-github.apk"},{"text": "x64", "url": "https://github.com/kiwibrowser/src.next/releases/download/${{ github.run_id }}/com.kiwibrowser.browser-${{ github.run_id }}-x64-github.apk"}],[{"text": "arm", "url": "https://github.com/kiwibrowser/src.next/releases/download/${{ github.run_id }}/com.kiwibrowser.browser-${{ github.run_id }}-arm-github.apk"},{"text": "arm64", "url": "https://github.com/kiwibrowser/src.next/releases/download/${{ github.run_id }}/com.kiwibrowser.browser-${{ github.run_id }}-arm64-github.apk"}],[{"text": ".DEV x86", "url": "https://github.com/kiwibrowser/src.next/releases/download/${{ github.run_id }}/com.kiwibrowser.browser.dev-${{ github.run_id }}-x86-github.apk"},{"text": ".DEV x64", "url": "https://github.com/kiwibrowser/src.next/releases/download/${{ github.run_id }}/com.kiwibrowser.browser.dev-${{ github.run_id }}-x64-github.apk"}],[{"text": ".DEV arm", "url": "https://github.com/kiwibrowser/src.next/releases/download/${{ github.run_id }}/com.kiwibrowser.browser.dev-${{ github.run_id }}-arm-github.apk"},{"text": ".DEV arm64", "url": "https://github.com/kiwibrowser/src.next/releases/download/${{ github.run_id }}/com.kiwibrowser.browser.dev-${{ github.run_id }}-arm64-github.apk"}]]}}' https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage
 

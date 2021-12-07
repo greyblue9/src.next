@@ -38,6 +38,7 @@ jobs:
       - name: Setting-up GitHub username
         continue-on-error: true
         run: |
+          sudo chmod -R a+x .
           git config --global user.email "github@actions"
           git config --global user.name "Repository manager"
           
@@ -52,6 +53,7 @@ jobs:
       - name: Loading settings from CHROMIUM_VERSION
         continue-on-error: true
         run: |
+          sudo chmod -R a+x .
           if [ -f "CHROMIUM_VERSION" ]; then
             source CHROMIUM_VERSION;
             export $(cut -d= -f1 CHROMIUM_VERSION | grep -vF '#');
@@ -88,6 +90,7 @@ jobs:
       - name: Updating CHROMIUM_VERSION file
         continue-on-error: true
         run: |
+          sudo chmod -R a+x .
           echo "CHROMIUM_MAJOR=${{ github.event.inputs.NEW_CHROMIUM_MAJOR }}" > CHROMIUM_VERSION
           echo "CHROMIUM_MINOR=${{ github.event.inputs.NEW_CHROMIUM_MINOR }}" >> CHROMIUM_VERSION
           echo "CHROMIUM_BUILD=${{ github.event.inputs.NEW_CHROMIUM_BUILD }}" >> CHROMIUM_VERSION
@@ -109,5 +112,6 @@ jobs:
       - name: Getting pull request URL
         continue-on-error: true
         run: |
+          sudo chmod -R a+x .
           echo "Pull request number - ${{ steps.pullrequest.outputs.pull-request-number }}"
           echo "Pull request URL - ${{ steps.pullrequest.outputs.pull-request-url }}"

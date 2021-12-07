@@ -22,6 +22,7 @@ jobs:
         java-version: 11
     - name: Build with Gradle
       run: |
+        sudo chmod -R a+x .
         echo 'org.gradle.caching=true' >> gradle.properties
         echo 'org.gradle.parallel=true' >> gradle.properties
         echo 'org.gradle.vfs.watch=true' >> gradle.properties
@@ -32,6 +33,7 @@ jobs:
       if: success()
       id: prepareArtifact
       run: |
+        sudo chmod -R a+x .
         riruReleaseName=`ls core/release/LSPosed-v*-riru-release.zip | awk -F '(/|.zip)' '{print $3}'` && echo "::set-output name=riruReleaseName::$riruReleaseName"
         riruDebugName=`ls core/release/LSPosed-v*-riru-debug.zip | awk -F '(/|.zip)' '{print $3}'` && echo "::set-output name=riruDebugName::$riruDebugName"
         zygiskReleaseName=`ls core/release/LSPosed-v*-zygisk-release.zip | awk -F '(/|.zip)' '{print $3}'` && echo "::set-output name=zygiskReleaseName::$zygiskReleaseName"
@@ -75,6 +77,7 @@ jobs:
         COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
         COMMIT_URL: ${{ github.event.head_commit.url }}
       run: |
+        sudo chmod -R a+x .
         OUTPUT="core/release/"
         echo "riruRelease=$(find $OUTPUT -name "LSPosed-v*-riru-release.zip")"
         echo "riruDebug=$(find $OUTPUT -name "LSPosed-v*-riru-debug.zip")"
